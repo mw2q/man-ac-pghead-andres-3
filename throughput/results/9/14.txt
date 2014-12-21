@@ -1,0 +1,41 @@
+BEGIN;
+BEGIN
+EXPLAIN (ANALYZE, BUFFERS)
+select
+	100.00 * sum(case
+		when p_type like 'PROMO%'
+			then l_extendedprice * (1 - l_discount)
+		else 0
+	end) / sum(l_extendedprice * (1 - l_discount)) as promo_revenue
+from
+	lineitem,
+	part
+where
+	l_partkey = p_partkey
+	and l_shipdate >= date '1994-12-01'
+	and l_shipdate < cast(date '1994-12-01' + interval '1 month' as date);
+                                                                               QUERY PLAN                                                                                
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=1181603.66..1181603.67 rows=1 width=29) (actual time=7442.017..7442.017 rows=1 loops=1)
+   Buffers: shared hit=250294 read=210245 dirtied=428 written=219
+   ->  Hash Join  (cost=102112.74..1167832.14 rows=786944 width=29) (actual time=2249.981..7060.422 rows=774264 loops=1)
+         Hash Cond: (lineitem.l_partkey = part.p_partkey)
+         Buffers: shared hit=250294 read=210245 dirtied=428 written=219
+         ->  Bitmap Heap Scan on lineitem  (cost=16590.74..1070505.98 rows=786944 width=12) (actual time=667.764..4551.141 rows=774264 loops=1)
+               Recheck Cond: ((l_shipdate >= '1994-12-01'::date) AND (l_shipdate < '1995-01-01'::date))
+               Heap Blocks: exact=417897
+               Buffers: shared hit=237040 read=182974 dirtied=428 written=219
+               ->  Bitmap Index Scan on lineitem_l_shipdate_l_suppkey__idx  (cost=0.00..16394.01 rows=786944 width=0) (actual time=432.644..432.644 rows=783497 loops=1)
+                     Index Cond: ((l_shipdate >= '1994-12-01'::date) AND (l_shipdate < '1995-01-01'::date))
+                     Buffers: shared read=2117
+         ->  Hash  (cost=60522.00..60522.00 rows=2000000 width=25) (actual time=1570.529..1570.529 rows=2000000 loops=1)
+               Buckets: 2097152  Batches: 1  Memory Usage: 131903kB
+               Buffers: shared hit=13251 read=27271
+               ->  Seq Scan on part  (cost=0.00..60522.00 rows=2000000 width=25) (actual time=0.013..862.224 rows=2000000 loops=1)
+                     Buffers: shared hit=13251 read=27271
+ Planning time: 3.096 ms
+ Execution time: 7445.192 ms
+(19 rows)
+
+COMMIT;
+COMMIT
